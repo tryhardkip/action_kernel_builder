@@ -1,0 +1,148 @@
+name: Build Kernel
+
+on:
+  workflow_dispatch:
+    inputs:
+      KERNEL_SOURCE:
+        description: 'Kernel source URL'
+        required: true
+        default: 'https://github.com/aosp-realm/kernel_xiaomi_sm8250.git'
+      KERNEL_BRANCH:
+        description: 'Kernel branch'
+        required: true
+        default: '14'
+      KERNEL_NAME:
+        description: 'Kernel/zip name'
+        required: true
+        default: 'perf'
+      CONFIG_FILE:
+        description: 'Config file (You can put multiple configs separated by space)'
+        required: true
+        default: 'apollo_defconfig vendor/debugfs.config'
+      TOOLCHAIN_URL:
+        description: "Clone URL of your toolchain including branch"
+        required: true
+        default: 'https://gitlab.com/dogpoopy/clang-r487747c.git -b main'
+      ANYKERNEL:
+        description: "Clone URL of your AnyKernel including branch"
+        required: true
+        default: 'https://github.com/aosp-realm/AnyKernel3.git -b master'
+
+jobs:
+  Kernel:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    defaults:
+      run:
+       shell: bash
+       working-directory: ${{ github.workspace }}
+
+    steps:
+      - name: Set-up environment
+        run: |
+          rm -rf ${{ github.workspace }}/*
+          sudo apt-get update
+          sudo apt-get install -y build-essential bc gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi libssl-dev libfl-dev
+          sudo apt-get install -y curl git ftp lftp wget libarchive-tools ccache python2 python2-dev
+          sudo apt-get install -y zip unzip tar gzip bzip2 rar unrar cpio jq
+          
+      - name: Cloning Kernel Source
+        run: git clone --single-branch --depth=1 --no-tags ${{ github.event.inputs.KERNEL_SOURCE }} -b ${{ github.event.inputs.KERNEL_BRANCH }} ${{ github.workspace }}
+
+      - name: Cloning Toolchain
+        run: git clone --single-branch --depth=1 --no-tags ${{ github.event.inputs.TOOLCHAIN_URL }} ${{ github.workspace }}/toolchain
+
+      - name: Set-up Cache
+        id: cache-out
+        uses: actions/cache@v4
+        with:
+         path: ${{ github.workspace }}/out
+         key: ${{ github.event.inputs.KERNEL_SOURCE }}-out-
+
+      - name: Start Compilation
+        run: |
+         objdir="${{ github.workspace }}/out"
+         anykernel="${{ github.workspace }}/anykernel"
+         clang_dir="${{ github.workspace }}/toolchain"
+         kernel_name="${{ github.event.inputs.KERNEL_NAME }}"
+         zip_name="${kernel_name}-$(date +"%d-%m-%Y-%H%M").zip"
+         arch="arm64"
+         
+         export PATH="${clang_dir}/bin:$PATH"
+         
+         make_defconfig() {
+           start=$(date +"%s")
+           make -s ARCH=${arch} O=${objdir} ${{ github.event.inputs.CONFIG_FILE }} -j$(nproc --all)
+           }
+           
+         compile() {
+           cd "${{ github.workspace }}"
+           
+           make -j$(nproc --all) \
+           O=out \
+           ARCH=${arch} \
+           CC=clang \
+           CROSS_COMPILE=aarch64-linux-gnu- \
+           CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+           CROSS_COMPILE_COMPAT=arm-linux-gnueabi- \
+           AR=llvm-ar \
+           LLVM_NM=llvm-nm \
+           OBJCOPY=llvm-objcopy \
+           LD=ld.lld \
+           NM=llvm-nm \
+           LLVM=1 \
+           LLVM_IAS=1
+           }
+           
+         completion() {
+           cd "${objdir}"
+           compiled_image="arch/arm64/boot/Image"
+           compiled_dtbo="arch/arm64/boot/dtbo.img"
+
+         if [[ -f ${compiled_image} && -f ${compiled_dtbo} ]]; then
+           git clone -q ${{ github.event.inputs.ANYKERNEL }} "$anykernel"
+           cp "${compiled_image}" "${{ github.workspace }}"
+           cp "${compiled_dtbo}" "${{ github.workspace }}"
+           mv -f "${compiled_image}" "$anykernel/Image"
+           mv -f "${compiled_dtbo}" "$anykernel/dtbo.img"
+           cd "$anykernel"
+           zip -r AnyKernel.zip *
+           mv -- "AnyKernel.zip" "$zip_name"
+           mv -- "$anykernel/$zip_name" "${{ github.workspace }}/$zip_name"
+           rm -rf "$anykernel"
+           end=$(date +"%s")
+           diff=$((end - start))
+           echo -e "BUILD COMPLETED IN ${diff} SECONDS"
+         else
+           echo "ERROR: Kernel compilation failed!"
+         exit 1
+         fi
+         }
+
+         make_defconfig
+         compile
+         completion
+
+         cd "${{ github.workspace }}"
+
+         # Set-up file info
+         zip_file=$(find . -name '${{ github.event.inputs.KERNEL_NAME }}*.zip' -print -quit)
+         echo "ZIP_FILE=$zip_file" >> $GITHUB_ENV
+         echo "ZIP_NAME=$(basename "$zip_file" .zip)" >> $GITHUB_ENV
+         echo "RELEASE_DATE=$(date +'%B %-d, %Y %H:%M')" >> $GITHUB_ENV
+         echo "DTBO=${{ github.workspace }}/dtbo.img" >> $GITHUB_ENV
+         echo "IMAGE=${{ github.workspace }}/Image" >> $GITHUB_ENV
+
+        continue-on-error: false
+  
+      - name: Upload files to repository releases page
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ${{ env.ZIP_FILE }}
+            ${{ env.DTBO }}
+            ${{ env.IMAGE }}
+          name: ${{ env.ZIP_NAME }}
+          tag_name: ${{ github.run_id }}
+          body: |
+           Released on ${{ env.RELEASE_DATE }}
