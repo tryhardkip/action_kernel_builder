@@ -1,4 +1,4 @@
-## Yet another kernel builder using GithlHub action
+## Yet another kernel builder using GitHub action
 
 #### How to use?
-Go to "Action" tab, fill up the required stuff and run the workflow
+Simply go to "ACTIONS" tab, fill up the required stuff and run the workflow
