@@ -98,11 +98,12 @@ jobs:
            cd "${objdir}"
            compiled_image="arch/arm64/boot/Image"
            compiled_dtbo="arch/arm64/boot/dtbo.img"
-
+           
          if [[ -f ${compiled_image} && -f ${compiled_dtbo} ]]; then
            git clone -q ${{ github.event.inputs.ANYKERNEL }} "$anykernel"
            cp "${compiled_image}" "${{ github.workspace }}"
            cp "${compiled_dtbo}" "${{ github.workspace }}"
+           cp arch/arm64/boot/dts/vendor/qcom/*.dtb "${{ github.workspace }}"
            mv -f "${compiled_image}" "$anykernel/Image"
            mv -f "${compiled_dtbo}" "$anykernel/dtbo.img"
            cd "$anykernel"
@@ -139,6 +140,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
+            ${{ github.workspace }}/*.dtb
             ${{ env.ZIP_FILE }}
             ${{ env.DTBO }}
             ${{ env.IMAGE }}
