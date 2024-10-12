@@ -6,11 +6,11 @@ on:
       KERNEL_SOURCE:
         description: 'Kernel source URL'
         required: true
-        default: 'https://github.com/aosp-realm/kernel_xiaomi_sm8250.git'
+        default: 'https://github.com/aosp-realm/android_kernel_xiaomi_sm8250.git'
       KERNEL_BRANCH:
         description: 'Kernel branch'
         required: true
-        default: '14'
+        default: 'apollo'
       KERNEL_NAME:
         description: 'Kernel/zip name'
         required: true
@@ -22,7 +22,7 @@ on:
       TOOLCHAIN_URL:
         description: "Clone URL of your toolchain including branch"
         required: true
-        default: 'https://gitlab.com/dogpoopy/clang-r487747c.git -b main'
+        default: 'https://gitlab.com/dogpoopy/clang-r522817.git -b main'
       ANYKERNEL:
         description: "Clone URL of your AnyKernel including branch"
         required: true
