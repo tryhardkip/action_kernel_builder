@@ -38,11 +38,6 @@ jobs:
        working-directory: ${{ github.workspace }}
 
     steps:
-      - name: Clean up the environment
-        uses: rokibhasansagar/slimhub_actions@main
-        with:
-          retain: "android_sdk,toolcache_all,compiler_all"
-
       - name: Set-up environment
         run: |
           rm -rf ${{ github.workspace }}/*
