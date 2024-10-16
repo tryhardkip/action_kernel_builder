@@ -76,70 +76,86 @@ jobs:
          export PATH="${clang_dir}/bin:$PATH"
          
          make_defconfig() {
-           start=$(date +"%s")
-           make -s ARCH=${arch} O=${objdir} ${{ github.event.inputs.CONFIG_FILE }} -j$(nproc --all)
-           }
-           
+            start=$(date +"%s")
+            make -s ARCH=${arch} O=${objdir} ${{ github.event.inputs.CONFIG_FILE }} -j$(nproc --all)
+         }
+         
          compile() {
-           cd "${{ github.workspace }}"
-           
-           make -j$(nproc --all) \
-           O=out \
-           ARCH=${arch} \
-           CC=clang \
-           CROSS_COMPILE=aarch64-linux-gnu- \
-           CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
-           CROSS_COMPILE_COMPAT=arm-linux-gnueabi- \
-           AR=llvm-ar \
-           LLVM_NM=llvm-nm \
-           OBJCOPY=llvm-objcopy \
-           LD=ld.lld \
-           NM=llvm-nm \
-           LLVM=1 \
-           LLVM_IAS=1
-           }
-           
+            cd "${{ github.workspace }}"
+            
+            make -j$(nproc --all) \
+            O=${objdir} \
+            ARCH=${arch} \
+            CC=clang \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            CROSS_COMPILE_COMPAT=arm-linux-gnueabi- \
+            AR=llvm-ar \
+            LLVM_NM=llvm-nm \
+            OBJCOPY=llvm-objcopy \
+            LD=ld.lld \
+            NM=llvm-nm \
+            LLVM=1 \
+            LLVM_IAS=1
+         }
+         
          completion() {
-           cd "${objdir}"
-           compiled_image="arch/arm64/boot/Image"
-           compiled_dtbo="arch/arm64/boot/dtbo.img"
-           qcom_dtb="arch/arm64/boot/dts/vendor/qcom"
+            cd "${objdir}"
+            compiled_image="arch/arm64/boot/Image"
+            compiled_gz_image="arch/arm64/boot/Image.gz"
+            compiled_gz_dtb="arch/arm64/boot/Image.gz-dtb"
+            compiled_dtbo="arch/arm64/boot/dtbo.img"
+            qcom_dtb="arch/arm64/boot/dts/vendor/qcom"
            
-         if [[ -f ${compiled_image} ]]; then
-           git clone -q ${{ github.event.inputs.ANYKERNEL }} "$anykernel"
-           cp "${compiled_image}" "${{ github.workspace }}"
+           if [[ -f ${compiled_image} || -f ${compiled_gz_image} || -f ${compiled_gz_dtb} ]]; then
+              git clone -q ${{ github.event.inputs.ANYKERNEL }} "$anykernel"
+              
+              if [[ -f ${compiled_image} ]]; then
+                  cp "${compiled_image}" "${{ github.workspace }}"
+              fi
 
-           if ls ${compiled_dtbo} 1> /dev/null 2>&1; then
-                cp "${compiled_dtbo}" "${{ github.workspace }}"
-                mv -f "${compiled_dtbo}" "$anykernel/dtbo.img"
-           fi
+              if [[ -f ${compiled_gz_image} ]]; then
+                  cp "${compiled_gz_image}" "${{ github.workspace }}"
+              fi
 
-           if ls ${qcom_dtb}/*.dtb 1> /dev/null 2>&1; then
-               cp ${qcom_dtb}/*.dtb "${{ github.workspace }}"
-           fi
-           
-           mv -f "${compiled_image}" "$anykernel/Image"
+              if [[ -f ${compiled_gz_dtb} ]]; then
+                  cp "${compiled_gz_dtb}" "${{ github.workspace }}"
+              fi
 
-           cd "$anykernel"
-           zip -r AnyKernel.zip *
-           mv -- "AnyKernel.zip" "$zip_name"
-           mv -- "$anykernel/$zip_name" "${{ github.workspace }}/$zip_name"
-           rm -rf "$anykernel"
-           end=$(date +"%s")
-           diff=$((end - start))
-           echo -e "BUILD COMPLETED IN ${diff} SECONDS"
+              if [[ -f ${compiled_dtbo} ]]; then
+                  cp "${compiled_dtbo}" "${{ github.workspace }}"
+              fi
+
+              if ls ${qcom_dtb}/*.dtb 1> /dev/null 2>&1; then
+                  cp ${qcom_dtb}/*.dtb "${{ github.workspace }}"
+              fi
+
+            mv -f "${compiled_image}" "$anykernel/Image" || true
+            mv -f "${compiled_gz_image}" "$anykernel/Image.gz" || true
+            mv -f "${compiled_gz_dtb}" "$anykernel/Image.gz-dtb" || true
+            mv -f "${compiled_dtbo}" "$anykernel/dtbo.img" || true
+                  
+            cd "$anykernel"
+            zip -r AnyKernel.zip *
+            mv -- "AnyKernel.zip" "$zip_name"
+            mv -- "$anykernel/$zip_name" "${{ github.workspace }}/$zip_name"
+            rm -rf "$anykernel"
+            
+            end=$(date +"%s")
+            diff=$((end - start))
+            echo -e "BUILD COMPLETED IN ${diff} SECONDS"
          else
-           echo "ERROR: Some output is missing!"
-         exit 1
+            echo "ERROR: Some output is missing!"
+            exit 1
          fi
          }
-
+         
          make_defconfig
          compile
          completion
-
+         
          cd "${{ github.workspace }}"
-
+         
          # Set-up file info
          zip_file=$(find . -name '${{ github.event.inputs.KERNEL_NAME }}*.zip' -print -quit)
          echo "ZIP_FILE=$zip_file" >> $GITHUB_ENV
@@ -147,13 +163,19 @@ jobs:
          echo "RELEASE_DATE=$(date +'%B %-d, %Y %H:%M')" >> $GITHUB_ENV
 
          if [[ -f "${{ github.workspace }}/dtbo.img" ]]; then
-            echo "DTBO=${{ github.workspace }}/dtbo.img" >> $GITHUB_ENV
+             echo "DTBO=${{ github.workspace }}/dtbo.img" >> $GITHUB_ENV
          fi
 
-         echo "IMAGE=${{ github.workspace }}/Image" >> $GITHUB_ENV
+         if [[ -f "${{ github.workspace }}/Image" ]]; then
+             echo "IMAGE=${{ github.workspace }}/Image" >> $GITHUB_ENV
+         elif [[ -f "${{ github.workspace }}/Image.gz" ]]; then
+             echo "IMAGE=${{ github.workspace }}/Image.gz" >> $GITHUB_ENV
+         elif [[ -f "${{ github.workspace }}/Image.gz-dtb" ]]; then
+             echo "IMAGE=${{ github.workspace }}/Image.gz-dtb" >> $GITHUB_ENV
+         fi
 
         continue-on-error: false
-  
+
       - name: Upload files to repository releases page
         uses: softprops/action-gh-release@v1
         with:
