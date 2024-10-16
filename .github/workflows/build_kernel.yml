@@ -71,8 +71,11 @@ jobs:
          clang_dir="${{ github.workspace }}/toolchain"
          kernel_name="${{ github.event.inputs.KERNEL_NAME }}"
          zip_name="${kernel_name}-$(date +"%d-%m-%Y-%H%M").zip"
+         output_dir=${{ github.workspace }}/compiled
          
          export PATH="${clang_dir}/bin:$PATH"
+         
+         mkdir -p $output_dir
          
          make_defconfig() {
             start=$(date +"%s")
@@ -106,46 +109,41 @@ jobs:
             compiled_dtbo="arch/arm64/boot/dtbo.img"
             qcom_dtb="arch/arm64/boot/dts/vendor/qcom"
            
-           if [[ -f ${compiled_image} || -f ${compiled_gz_image} || -f ${compiled_gz_dtb} ]]; then
+         if [[ -f ${compiled_image} || -f ${compiled_gz_image} || -f ${compiled_gz_dtb} ]]; then
               git clone -q ${{ github.event.inputs.ANYKERNEL }} "$anykernel"
+
+              if [[ -f "${compiled_image}" ]]; then
+                  cp -f "${compiled_image}" "$anykernel/Image" || true
+                  cp -f "${compiled_image}" "$output_dir/Image" || true
+              elif [[ -f "${compiled_gz_image}" ]]; then
+                  cp -f "${compiled_gz_image}" "$anykernel/Image.gz" || true
+                  cp -f "${compiled_gz_image}" "$output_dir/Image.gz" || true
+              elif [[ -f "${compiled_gz_dtb}" ]]; then
+                  cp -f "${compiled_gz_dtb}" "$anykernel/Image.gz-dtb" || true
+                  cp -f "${compiled_gz_dtb}" "$output_dir/Image.gz-dtb" || true
+              fi
               
-              if [[ -f ${compiled_image} ]]; then
-                  cp "${compiled_image}" "${{ github.workspace }}"
+              if [[ -f "${compiled_dtbo}" ]]; then
+                  cp -f "${compiled_dtbo}" "$anykernel/dtbo.img" || true
+                  cp -f "${compiled_dtbo}" "$output_dir/dtbo.img" || true
               fi
-
-              if [[ -f ${compiled_gz_image} ]]; then
-                  cp "${compiled_gz_image}" "${{ github.workspace }}"
-              fi
-
-              if [[ -f ${compiled_gz_dtb} ]]; then
-                  cp "${compiled_gz_dtb}" "${{ github.workspace }}"
-              fi
-
-              if [[ -f ${compiled_dtbo} ]]; then
-                  cp "${compiled_dtbo}" "${{ github.workspace }}"
-              fi
-
+              
               if ls ${qcom_dtb}/*.dtb 1> /dev/null 2>&1; then
-                  cp ${qcom_dtb}/*.dtb "${{ github.workspace }}"
+                  cp -f ${qcom_dtb}/*.dtb "$output_dir" || true
               fi
 
-            mv -f "${compiled_image}" "$anykernel/Image" || true
-            mv -f "${compiled_gz_image}" "$anykernel/Image.gz" || true
-            mv -f "${compiled_gz_dtb}" "$anykernel/Image.gz-dtb" || true
-            mv -f "${compiled_dtbo}" "$anykernel/dtbo.img" || true
-                  
-            cd "$anykernel"
-            zip -r AnyKernel.zip *
-            mv -- "AnyKernel.zip" "$zip_name"
-            mv -- "$anykernel/$zip_name" "${{ github.workspace }}/$zip_name"
-            rm -rf "$anykernel"
+              cd "$anykernel"
+              zip -r AnyKernel.zip *
+              mv -- "AnyKernel.zip" "$zip_name"
+              mv -- "$anykernel/$zip_name" "$output_dir/$zip_name"
+              rm -rf "$anykernel"
             
-            end=$(date +"%s")
-            diff=$((end - start))
-            echo -e "BUILD COMPLETED IN ${diff} SECONDS"
+              end=$(date +"%s")
+              diff=$((end - start))
+              echo -e "BUILD COMPLETED IN ${diff} SECONDS"
          else
-            echo "ERROR: Some output is missing!"
-            exit 1
+              echo "ERROR: Some output is missing!"
+              exit 1
          fi
          }
          
@@ -153,25 +151,10 @@ jobs:
          compile
          completion
          
-         cd "${{ github.workspace }}"
-         
          # Set-up file info
-         zip_file=$(find . -name '${{ github.event.inputs.KERNEL_NAME }}*.zip' -print -quit)
-         echo "ZIP_FILE=$zip_file" >> $GITHUB_ENV
+         zip_file=$(find $output_dir -name '${{ github.event.inputs.KERNEL_NAME }}*.zip' -print -quit)
          echo "ZIP_NAME=$(basename "$zip_file" .zip)" >> $GITHUB_ENV
          echo "RELEASE_DATE=$(date +'%B %-d, %Y %H:%M')" >> $GITHUB_ENV
-
-         if [[ -f "${{ github.workspace }}/dtbo.img" ]]; then
-             echo "DTBO=${{ github.workspace }}/dtbo.img" >> $GITHUB_ENV
-         fi
-
-         if [[ -f "${{ github.workspace }}/Image" ]]; then
-             echo "IMAGE=${{ github.workspace }}/Image" >> $GITHUB_ENV
-         elif [[ -f "${{ github.workspace }}/Image.gz" ]]; then
-             echo "IMAGE=${{ github.workspace }}/Image.gz" >> $GITHUB_ENV
-         elif [[ -f "${{ github.workspace }}/Image.gz-dtb" ]]; then
-             echo "IMAGE=${{ github.workspace }}/Image.gz-dtb" >> $GITHUB_ENV
-         fi
 
         continue-on-error: false
 
@@ -179,10 +162,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            ${{ github.workspace }}/*.dtb
-            ${{ env.ZIP_FILE }}
-            ${{ env.DTBO }}
-            ${{ env.IMAGE }}
+            ${{ github.workspace }}/compiled/*
           name: ${{ env.ZIP_NAME }}
           tag_name: ${{ github.run_id }}
           body: |
