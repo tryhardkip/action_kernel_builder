@@ -105,17 +105,21 @@ jobs:
            compiled_dtbo="arch/arm64/boot/dtbo.img"
            qcom_dtb="arch/arm64/boot/dts/vendor/qcom"
            
-         if [[ -f ${compiled_image} && -f ${compiled_dtbo} ]]; then
+         if [[ -f ${compiled_image} ]]; then
            git clone -q ${{ github.event.inputs.ANYKERNEL }} "$anykernel"
            cp "${compiled_image}" "${{ github.workspace }}"
-           cp "${compiled_dtbo}" "${{ github.workspace }}"
-           
+
+           if ls ${compiled_dtbo} 1> /dev/null 2>&1; then
+                cp "${compiled_dtbo}" "${{ github.workspace }}"
+                mv -f "${compiled_dtbo}" "$anykernel/dtbo.img"
+           fi
+
            if ls ${qcom_dtb}/*.dtb 1> /dev/null 2>&1; then
                cp ${qcom_dtb}/*.dtb "${{ github.workspace }}"
            fi
            
            mv -f "${compiled_image}" "$anykernel/Image"
-           mv -f "${compiled_dtbo}" "$anykernel/dtbo.img"
+
            cd "$anykernel"
            zip -r AnyKernel.zip *
            mv -- "AnyKernel.zip" "$zip_name"
@@ -125,7 +129,7 @@ jobs:
            diff=$((end - start))
            echo -e "BUILD COMPLETED IN ${diff} SECONDS"
          else
-           echo "ERROR: Kernel compilation failed!"
+           echo "ERROR: Some output is missing!"
          exit 1
          fi
          }
@@ -141,7 +145,11 @@ jobs:
          echo "ZIP_FILE=$zip_file" >> $GITHUB_ENV
          echo "ZIP_NAME=$(basename "$zip_file" .zip)" >> $GITHUB_ENV
          echo "RELEASE_DATE=$(date +'%B %-d, %Y %H:%M')" >> $GITHUB_ENV
-         echo "DTBO=${{ github.workspace }}/dtbo.img" >> $GITHUB_ENV
+
+         if [[ -f "${{ github.workspace }}/dtbo.img" ]]; then
+            echo "DTBO=${{ github.workspace }}/dtbo.img" >> $GITHUB_ENV
+         fi
+
          echo "IMAGE=${{ github.workspace }}/Image" >> $GITHUB_ENV
 
         continue-on-error: false
