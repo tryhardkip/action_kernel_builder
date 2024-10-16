@@ -71,13 +71,12 @@ jobs:
          clang_dir="${{ github.workspace }}/toolchain"
          kernel_name="${{ github.event.inputs.KERNEL_NAME }}"
          zip_name="${kernel_name}-$(date +"%d-%m-%Y-%H%M").zip"
-         arch="arm64"
          
          export PATH="${clang_dir}/bin:$PATH"
          
          make_defconfig() {
             start=$(date +"%s")
-            make -s ARCH=${arch} O=${objdir} ${{ github.event.inputs.CONFIG_FILE }} -j$(nproc --all)
+            make -s ARCH=arm64 O=${objdir} ${{ github.event.inputs.CONFIG_FILE }} -j$(nproc --all)
          }
          
          compile() {
@@ -85,7 +84,7 @@ jobs:
             
             make -j$(nproc --all) \
             O=${objdir} \
-            ARCH=${arch} \
+            ARCH=arm64 \
             CC=clang \
             CROSS_COMPILE=aarch64-linux-gnu- \
             CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
