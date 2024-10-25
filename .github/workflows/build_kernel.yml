@@ -60,13 +60,6 @@ jobs:
              git clone --single-branch --depth=1 --no-tags ${{ github.event.inputs.TOOLCHAIN_URL }} ${{ github.workspace }}/toolchain
          fi
          
-      - name: Set-up Cache
-        id: cache-out
-        uses: actions/cache@v4
-        with:
-          path: ${{ github.workspace }}/out
-          key: ${{ github.event.inputs.KERNEL_SOURCE }}-out-
-
       - name: Start Compilation
         run: |
          objdir="${{ github.workspace }}/out"
