@@ -6,11 +6,11 @@ on:
       KERNEL_SOURCE:
         description: 'Kernel source URL'
         required: true
-        default: 'https://github.com/aosp-realm/android_kernel_xiaomi_sm8250.git'
+        default: 'https://github.com/aosp-realm/android_kernel_xiaomi_apollo.git'
       KERNEL_BRANCH:
         description: 'Kernel branch'
         required: true
-        default: 'apollo'
+        default: 'main'
       KERNEL_NAME:
         description: 'Kernel/zip name'
         required: true
