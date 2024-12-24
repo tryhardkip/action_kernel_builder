@@ -70,6 +70,12 @@ jobs:
           echo "KERNEL_NAME=${{ github.event.inputs.KERNEL_NAME }}" >> $GITHUB_ENV
           echo "ZIP_NAME=${{ github.event.inputs.KERNEL_NAME }}-$(date +"%d%m%Y").zip" >> $GITHUB_ENV
           echo "OUTPUT_DIR=${{ github.workspace }}/compiled" >> $GITHUB_ENV
+
+          KERNEL_SOURCE_URL="${{ github.event.inputs.KERNEL_SOURCE }}"
+          if [[ "${KERNEL_SOURCE_URL}" == *.git ]]; then
+            KERNEL_SOURCE_URL="${KERNEL_SOURCE_URL%.git}"
+          fi
+          echo "KERNEL_SOURCE_URL=${KERNEL_SOURCE_URL}" >> $GITHUB_ENV
          
       - name: Start Compilation
         run: |
@@ -164,5 +170,5 @@ jobs:
           name: ${{ github.event.inputs.KERNEL_NAME }} // ${{ env.RELEASE_DATE }}
           tag_name: ${{ github.run_id }}
           body: |
-           [Kernel Source](${{ github.event.inputs.KERNEL_SOURCE }}/tree/${{ github.event.inputs.KERNEL_BRANCH }})
-           [Latest Commit](${{ github.event.inputs.KERNEL_SOURCE }}/commit/${{ env.COMMIT_ID }}) at the time of building.
+            [Kernel Source](${{ env.KERNEL_SOURCE_URL }}/tree/${{ github.event.inputs.KERNEL_BRANCH }})
+            [Latest Commit](${{ env.KERNEL_SOURCE_URL }}/commit/${{ env.COMMIT_ID }}) at the time of building.
