@@ -18,15 +18,15 @@ on:
       CONFIG_FILE:
         description: 'Config file (You can put multiple configs separated by space)'
         required: true
-        default: 'vendor/kona-perf_defconfig'
+        default: 'kona-per_defconfig'
       TOOLCHAIN_URL:
         description: "Clone URL of your toolchain"
         required: true
-        default: 'https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/tags/android-15.0.0_r1/clang-r522817.tar.gz'
+        default: 'https://gitlab.com/provasishh/clang.git'
       ANYKERNEL:
         description: "Clone URL of your AnyKernel"
         required: true
-        default: 'https://github.com/bijoyv9/AnyKernel3.git -b RMX3371'
+        default: 'https://github.com/bijoyv9/AnyKernel3.git'
 
 jobs:
   Build_Kernel:
@@ -46,6 +46,7 @@ jobs:
           sudo apt-get install -y curl git ftp lftp wget libarchive-tools ccache python-is-python3
           sudo apt-get install -y zip unzip tar gzip bzip2 rar unrar cpio jq
           
+          
       - name: Cloning Kernel Source
         run: |
           git clone --single-branch --depth=1 --no-tags ${{ github.event.inputs.KERNEL_SOURCE }} -b ${{ github.event.inputs.KERNEL_BRANCH }} ${{ github.workspace }}/kernel
@@ -62,6 +63,13 @@ jobs:
              git clone --single-branch --depth=1 --no-tags ${{ github.event.inputs.TOOLCHAIN_URL }} ${{ github.workspace }}/toolchain
          fi
 
+      - name: Adding KernelSU Next Patches to Kernel Source
+        run: |
+          git config --global user.name "DinhQuangDoi"
+          git config --global user.email "dinhquangdoi99@gmail.com"
+          cd ${{ github.workspace }}/kernel
+          curl -kLSs https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh | bash -s susfs-main
+    
       - name: Set environment variables
         run: |
           echo "OBJDIR=${{ github.workspace }}/kernel/out" >> $GITHUB_ENV
@@ -93,15 +101,14 @@ jobs:
             make -j$(nproc --all) \
             O=${{ env.OBJDIR }} \
             ARCH=arm64 \
-            CC=clang \
+            CC="ccache clang" \
             CROSS_COMPILE=aarch64-linux-gnu- \
             CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
             CROSS_COMPILE_COMPAT=arm-linux-gnueabi- \
             AR=llvm-ar \
             LLVM_NM=llvm-nm \
             OBJCOPY=llvm-objcopy \
-            LD=ld.lld \
-            NM=llvm-nm \
+            LD=ld.lld NM=llvm-nm \
             LLVM=1 \
             LLVM_IAS=1
          }
@@ -113,7 +120,7 @@ jobs:
          diff=$((end - start))
          echo -e "BUILD COMPLETED IN ${diff} SECONDS"
 
-        continue-on-error: false
+        continue-on-error: true
          
       - name: Checking for outputs
         run: |
