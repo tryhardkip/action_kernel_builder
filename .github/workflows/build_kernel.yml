@@ -18,7 +18,7 @@ on:
       CONFIG_FILE:
         description: 'Config file (You can put multiple configs separated by space)'
         required: true
-        default: 'kona-per_defconfig'
+        default: 'vendor/kona-per_defconfig'
       TOOLCHAIN_URL:
         description: "Clone URL of your toolchain"
         required: true
