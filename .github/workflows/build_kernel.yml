@@ -6,19 +6,19 @@ on:
       KERNEL_SOURCE:
         description: 'Kernel source URL'
         required: true
-        default: 'https://github.com/aosp-realm/android_kernel_xiaomi_apollo.git'
+        default: 'https://github.com/DinhQuangDoi/kernel_realme_RMX3371.git'
       KERNEL_BRANCH:
         description: 'Kernel branch'
         required: true
-        default: 'main'
+        default: 'phoeniX-SSU'
       KERNEL_NAME:
         description: 'Kernel/zip name'
         required: true
-        default: 'perf'
+        default: 'phoenix'
       CONFIG_FILE:
         description: 'Config file (You can put multiple configs separated by space)'
         required: true
-        default: 'apollo_defconfig vendor/debugfs.config'
+        default: 'vendor/kona-perf_defconfig'
       TOOLCHAIN_URL:
         description: "Clone URL of your toolchain"
         required: true
@@ -26,7 +26,7 @@ on:
       ANYKERNEL:
         description: "Clone URL of your AnyKernel"
         required: true
-        default: 'https://github.com/aosp-realm/AnyKernel3.git -b master'
+        default: 'https://github.com/bijoyv9/AnyKernel3.git -b RMX3371'
 
 jobs:
   Build_Kernel:
