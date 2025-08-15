@@ -1,0 +1,96 @@
+name: Build Sukisu Ultra
+permissions:
+  contents: write
+  
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Kernel for RMX3371
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install ccache
+      run: sudo apt-get install -y ccache
+
+    - name: Restore ccache
+      uses: actions/cache@v4
+      with:
+        path: ~/.ccache
+        key: ccache-${{ github.workflow }}-${{ matrix.device }}-${{ github.sha }}
+        restore-keys: |
+         ccache-${{ github.workflow }}-${{ matrix.device }}-
+         ccache-${{ github.workflow }}-
+         
+    - name: Setup ccache environment
+      run: |
+       export CCACHE_DIR=~/.ccache
+       ccache -M 2G
+       ccache -z
+  
+    - name: Install dependencies
+      run: |
+          sudo apt update
+          sudo apt install -y git wget build-essential bc curl flex bison libssl-dev ccache \
+          libncurses-dev clang lld zip libstdc++6 p7zip-full
+
+    - name: Clone kernel source
+      run: |
+          git clone -b phoeniX-SSU --depth=1 https://github.com/DinhQuangDoi/kernel_realme_RMX3371.git kernel
+          cd kernel
+          git submodule update --init --recursive
+
+    - name: Clone clang toolchain
+      run: |
+          git clone --depth=1 https://gitlab.com/provasishh/clang tc
+
+
+    - name: Build kernel
+      run: |
+          export KERNEL_DIR=$GITHUB_WORKSPACE/kernel
+          export TC_DIR=$GITHUB_WORKSPACE/tc
+          export OUT_DIR=$KERNEL_DIR/out
+
+          cd $KERNEL_DIR
+          mkdir -p out
+
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export CROSS_COMPILE=$TC_DIR/aarch64-linux-android-4.9/bin/aarch64-linux-android-
+          export CLANG_TRIPLE=aarch64-linux-gnu-
+          export PATH=$TC_DIR/clang/bin:$PATH
+
+          make O=out vendor/kona-perf_defconfig
+          make O=out -j$(nproc) \
+            CC=clang \
+            LLVM=1 \
+            LLVM_IAS=1 \
+            NM=llvm-nm \
+            OBJDUMP=llvm-objdump \
+            STRIP=llvm-strip \
+            OBJCOPY=llvm-objcopy
+    
+    - name: Show ccache stats
+      run: ccache -s
+
+    - name: Pack zip
+      run: |
+         DT=$(date +"%Y%m%d-%H%M")
+         cd kernel/anykernel
+         cp ../out/arch/arm64/boot/{Image,dtbo.img,dtb} .
+         zip -r9 phoeniX-2.2-${DT}.zip *
+         mv phoeniX-2.2-${DT}.zip $GITHUB_WORKSPACE/
+
+    - name: Create Release and Upload ZIP
+      uses: softprops/action-gh-release@v2
+      with:
+       tag_name: phoeniX-${{ github.run_number }}
+       name: phoeniX Release ${{ github.run_number }}
+       files: phoeniX-2.2-*.zip
+       body: |
+         ✅ Kernel build for RMX3371
+         🧱 Build Number: ${{ github.run_number }}
+         📅 Build Date: ${{ steps.date.outputs.date }}
+      env:
+       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
