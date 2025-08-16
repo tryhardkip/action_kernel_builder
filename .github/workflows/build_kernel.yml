@@ -26,7 +26,7 @@ on:
       ANYKERNEL:
         description: "Clone URL of your AnyKernel"
         required: true
-        default: 'https://github.com/bijoyv9/AnyKernel3.git'
+        default: 'https://github.com/DinhQuangDoi/AnyKernel3.git'
 
 jobs:
   Build_Kernel:
@@ -42,7 +42,7 @@ jobs:
         run: |
           rm -rf ${{ github.workspace }}/*
           sudo apt-get update
-          sudo apt-get install -y build-essential bc gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi libssl-dev libfl-dev
+          sudo apt-get install -y build-essential llvm lld bc gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi libssl-dev libfl-dev
           sudo apt-get install -y curl git ftp lftp wget libarchive-tools ccache python-is-python3
           sudo apt-get install -y zip unzip tar gzip bzip2 rar unrar cpio jq
           
