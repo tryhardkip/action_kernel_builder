@@ -121,6 +121,53 @@ jobs:
          echo -e "BUILD COMPLETED IN ${diff} SECONDS"
 
         continue-on-error: true
+
+      - name: KPM
+        run: |
+          set -e
+          echo "Starting kernel patching process..."
+          
+          PATCHER_DIR="${{ github.workspace }}/patcher"
+          mkdir -p "${PATCHER_DIR}"
+          cd "${PATCHER_DIR}" || {
+              echo "Error: Failed to enter patcher directory!" >&2
+              exit 1
+          }
+
+          echo "Downloading patcher..."
+          wget -q https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch/releases/download/0.12.0/patch_linux || {
+              echo "Error: Failed to download patcher!" >&2
+              exit 1
+          }
+
+          chmod +x patch_linux
+
+          echo "Moving patcher to output directory and patching..."
+          
+          # Move patcher to the output directory
+          mv patch_linux ${{ env.OBJDIR }}/arch/arm64/boot/
+
+          # Change to the kernel output directory
+          cd ${{ env.OBJDIR }}/arch/arm64/boot/ || {
+              echo "Error: Failed to enter kernel output directory!" >&2
+              exit 1
+          }
+
+          # Execute patcher
+          ./patch_linux || {
+              echo "Error: Patching failed!" >&2
+              exit 1
+          }
+
+          # Replace original image
+          rm -f Image
+          mv oImage Image
+
+          echo "Kernel patching completed successfully!"
+
+        # Chắc chắn rằng bước này sẽ tiếp tục ngay cả khi có lỗi
+        continue-on-error: true
+        
          
       - name: Checking for outputs
         run: |
