@@ -1,4 +1,4 @@
-name: Build Kernel
+git': Build Kernel
 
 on:
   workflow_dispatch:
@@ -6,19 +6,19 @@ on:
       KERNEL_SOURCE:
         description: 'Kernel source URL'
         required: true
-        default: 'https://github.com/DinhQuangDoi/kernel_realme_RMX3371.git'
+        default: 'https://github.com/tryhardkip/android_kernel_lge_sm8150_ksu.git'
       KERNEL_BRANCH:
         description: 'Kernel branch'
         required: true
-        default: 'phoeniX-SSU'
+        default: 'lineage-22.2'
       KERNEL_NAME:
         description: 'Kernel/zip name'
         required: true
-        default: 'phoenix'
+        default: '4.14.355-mh2lm'
       CONFIG_FILE:
         description: 'Config file (You can put multiple configs separated by space)'
         required: true
-        default: 'vendor/kona-perf_defconfig'
+        default: 'vendor/lineageos_mh2_defconfig'
       TOOLCHAIN_URL:
         description: "Clone URL of your toolchain"
         required: true
